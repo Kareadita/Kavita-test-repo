@@ -15,7 +15,7 @@ jobs:
       - uses: mathieu-bour/setup-sentry-cli@1.2.0
         with:
           version: latest
-          token: ${{ SECRETS.SENTRY_TOKEN }}
+          token: ${{ secrets.SENTRY_TOKEN }}
           organization: kavita-7n
           project: angular
 
