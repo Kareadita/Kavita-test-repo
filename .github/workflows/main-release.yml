@@ -1,7 +1,6 @@
 name: 'Main Release'
 on:
-  push:
-    branches: [ feature/monorepo ]
+  workflow_dispatch:
 
 jobs:
   release:
@@ -10,7 +9,7 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
-        
+
       - name: Build Changelog
         id: github_release
         uses: mikepenz/release-changelog-builder-action@v1
