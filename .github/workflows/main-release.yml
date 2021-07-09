@@ -8,15 +8,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
-
-      - name: Build Changelog
-        id: github_release
-        uses: mikepenz/release-changelog-builder-action@v1
         with:
-          configuration: "changelog-config.json"
-          commitMode: "true"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Create Changelog
+        uses: fregante/release-with-changelog@v3
+        with:
+        commit-template: '- {title} ← {hash}'
+        template: |
+          ### Changelog
+
+          {commits}
+
+        token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         uses: actions/create-release@v1
