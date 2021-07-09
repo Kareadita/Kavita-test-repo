@@ -13,20 +13,13 @@ jobs:
       - name: Check Out Repo
         uses: actions/checkout@v2
 
-      - name: Check Out WebUI
-        uses: actions/checkout@v2
-        with:
-          repository: Kareadita/Kavita-webui
-          ref: develop
-          path: Kavita-webui/
-
       - name: NodeJS to Compile WebUI
         uses: actions/setup-node@v2.1.5
         with:
           node-version: '14'
       - run: |
 
-          cd Kavita-webui/ || exit
+          cd UI/Web/ || exit
           echo 'Installing web dependencies'
           npm install
 

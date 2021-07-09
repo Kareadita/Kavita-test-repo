@@ -49,14 +49,14 @@ BuildUI()
     ProgressStart 'Building UI'
     echo 'Removing old wwwroot'
     rm -rf API/wwwroot/*
-    cd ../Kavita-webui/ || exit
+    cd ../UI/Web/ || exit
     echo 'Installing web dependencies'
     npm install
     echo 'Building UI'
     npm run prod
     echo 'Copying back to Kavita wwwroot'
-    cp -r dist/* ../Kavita/API/wwwroot
-    cd ../Kavita/ || exit
+    cp -r dist/* ../../API/wwwroot
+    cd ../ || exit
     ProgressEnd 'Building UI'
 }
 

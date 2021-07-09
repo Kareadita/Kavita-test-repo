@@ -62,24 +62,6 @@ Package()
 
 }
 
-BuildUI()
-{
-    ProgressStart 'Building UI'
-    echo 'Removing old wwwroot'
-    rm -rf API/wwwroot/*
-    cd ../Kavita-webui/ || exit
-    echo 'Installing web dependencies'
-    npm install
-    echo 'Building UI'
-    npm run prod
-    ls -l dist
-    echo 'Copying back to Kavita wwwroot'
-    cp -r dist/* ../Kavita/API/wwwroot
-    ls -l ../Kavita/API/wwwroot
-    cd ../Kavita/ || exit
-    ProgressEnd 'Building UI'
-}
-
 dir=$PWD
 
 if [ -d _output ]
