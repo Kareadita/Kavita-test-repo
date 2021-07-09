@@ -1,0 +1,52 @@
+name: Validate Run
+on:
+  push:
+    branches: [ feature/monorepo ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+      
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.100
+
+    - name: Install dependencies
+      run: dotnet restore
+      
+    - name: Build .Net
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Bump versions
+      uses: SiqiLu/dotnet-bump-version@master
+      with:
+        version_files: "Kavita.Common/Kavita.Common.csproj"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get csproj Version
+      uses: naminodarie/get-net-sdk-project-versions-action@v1
+      id: get-version
+      with:
+        proj-path: Kavita.Common/Kavita.Common.csproj
+
+    - name: Echo csproj version
+      run: echo "${{steps.get-version.outputs.assembly-version}}" 
+        
+    - name: Trigger Sentry workflow
+      uses: benc-uk/workflow-dispatch@v1
+      with:
+        workflow: Sentry Release
+        token: ${{ secrets.REPO_GHA_PAT }}
+        inputs: '{ "version": "${{steps.get-version.outputs.assembly-version}}" }'
+
+    - name: Trigger release workflow
+      uses: benc-uk/workflow-dispatch@v1
+      with:
+        workflow: Main Release
+        token: ${{ secrets.REPO_GHA_PAT }}
