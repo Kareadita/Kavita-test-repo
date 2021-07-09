@@ -14,13 +14,13 @@ jobs:
       - name: Create Changelog
         uses: fregante/release-with-changelog@v3
         with:
-        commit-template: '- {title} ← {hash}'
-        template: |
-          ### Changelog
+          commit-template: '- {title} ← {hash}'
+          template: |
+            ### Changelog
 
-          {commits}
+            {commits}
 
-        token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release
         uses: actions/create-release@v1
