@@ -22,8 +22,10 @@ categories:
       - 'change'
       - 'changed'
   - title: 'Maintenance'
-    label: 'chore'
-
+    labels:
+      - 'chore'
+      - 'DevOps'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 version-resolver:
   major:
     labels:
@@ -38,6 +40,8 @@ version-resolver:
       - 'type: docs'
       - 'type: dependencies'
       - 'type: security'
-
+include-labels:
+  - 'enhancement'
+  - 'bug'
 exclude-labels:
   - 'skip-changelog'
