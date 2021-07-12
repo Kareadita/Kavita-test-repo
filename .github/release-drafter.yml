@@ -25,7 +25,7 @@ categories:
     labels:
       - 'chore'
       - 'DevOps'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-template: '- $BODY @$AUTHOR (#$NUMBER)'
 version-resolver:
   major:
     labels:
