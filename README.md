@@ -19,6 +19,8 @@ your reading collection with your friends and family!
 
 # Do not use, this is a test repository for build system testing
 
+test
+
 ### License
 
 * [GNU GPL v3](http://www.gnu.org/licenses/gpl.html)
