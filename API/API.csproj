@@ -51,7 +51,7 @@
     <PackageReference Include="NetVips.Native" Version="8.10.6" />
     <PackageReference Include="NReco.Logging.File" Version="1.1.1" />
     <PackageReference Include="Sentry.AspNetCore" Version="3.3.4" />
-    <PackageReference Include="SharpCompress" Version="0.28.1" />
+    <PackageReference Include="SharpCompress" Version="0.29.0" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="8.20.0.28934">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
