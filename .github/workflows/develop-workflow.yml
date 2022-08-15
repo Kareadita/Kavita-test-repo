@@ -1,7 +1,8 @@
 name: Build Nightly
 on:
-  push
-    branches: [develop]
+  push:
+    branches:
+      - develop
 
 jobs:
   version:
