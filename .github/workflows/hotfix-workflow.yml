@@ -1,0 +1,111 @@
+name: Build Hotfix
+on:
+  push
+    branches:
+      - main
+
+    version:
+    name: Bump Stable version on Hotfix push
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'hotfix') }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
+        with:
+            dotnet-version: 6.0.x
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Bump versions
+        uses: SiqiLu/dotnet-bump-version@2.0.0
+        with:
+          version_files: Kavita.Common/Kavita.Common.csproj
+          github_token: ${{ secrets.REPO_GHA_PAT }}
+          version_mask: "0.0.0.1"
+
+  hotfix:
+    name: Build Stable Docker if Hotfix push
+    needs: [ version ]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'hotfix') }}
+    steps:
+
+      - name: Find Current Pull Request
+        uses: jwalton/gh-find-current-pr@v1.0.2
+        id: findPr
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse PR body
+        id: parse-body
+        run: |
+          body="${{ steps.findPr.outputs.body }}"
+          if [[ ${#body} -gt 1870 ]] ; then
+            body=${body:0:1870}
+            body="${body}...and much more.
+
+            Read full changelog: https://github.com/Kareadita/Kavita/releases/latest"
+          fi
+
+          body=${body//\'/}
+          body=${body//'%'/'%25'}
+          body=${body//$'\n'/'%0A'}
+          body=${body//$'\r'/'%0D'}
+          body=${body//$'`'/'%60'}
+          body=${body//$'>'/'%3E'}
+          echo $body
+          echo "::set-output name=BODY::$body"
+
+      - name: Check Out Repo
+        uses: actions/checkout@v2
+        with:
+          ref: main
+
+      - name: NodeJS to Compile WebUI
+        uses: actions/setup-node@v2.1.5
+        with:
+          node-version: '14'
+      - run: |
+
+          cd UI/Web || exit
+          echo 'Installing web dependencies'
+          npm install
+
+          echo 'Building UI'
+          npm run prod
+
+          echo 'Copying back to Kavita wwwroot'
+          rsync -a dist/ ../../API/wwwroot/
+
+          cd ../ || exit
+
+      - name: Get csproj Version
+        uses: naminodarie/get-net-sdk-project-versions-action@v1
+        id: get-version
+        with:
+          proj-path: Kavita.Common/Kavita.Common.csproj
+
+      - name: Echo csproj version
+        run: echo "${{steps.get-version.outputs.assembly-version}}"
+
+      - name: Parse Version
+        run: |
+          version='${{steps.get-version.outputs.assembly-version}}'
+          newVersion=${version%.*}
+          echo $newVersion
+          echo "::set-output name=VERSION::$newVersion"
+        id: parse-version
+
+      - name: Compile dotnet app
+        uses: actions/setup-dotnet@v2
+        with:
+            dotnet-version: 6.0.x
+      - run: ./monorepo-build.sh
