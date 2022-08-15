@@ -2,8 +2,7 @@ name: Build Stable
 
 on:
   push
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   version:
