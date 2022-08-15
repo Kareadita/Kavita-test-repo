@@ -4,7 +4,8 @@ on:
     branches:
       - develop
 
-    version:
+jobs:
+  version:
     name: Bump version on Develop push
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
