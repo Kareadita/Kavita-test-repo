@@ -10,7 +10,7 @@ your reading collection with your friends and family!
 [![Release](https://img.shields.io/github/release/Kareadita/Kavita.svg?style=flat&maxAge=3600)](https://github.com/Kareadita/Kavita/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat)](https://github.com/Kareadita/Kavita/blob/master/LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/Kareadita/Kavita/total.svg?style=flat)](https://github.com/Kareadita/Kavita/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/kizaing/kavita.svg)](https://hub.docker.com/r/kizaing/kavita/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/jvmilazz0/kavita.svg)](https://hub.docker.com/r/jvmilazz0/kavita/)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Kareadita_Kavita&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=Kareadita_Kavita)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Kareadita_Kavita&metric=security_rating)](https://sonarcloud.io/dashboard?id=Kareadita_Kavita)
 [![Backers on Open Collective](https://opencollective.com/kavita/backers/badge.svg)](#backers)
@@ -58,7 +58,7 @@ docker run --name kavita -p 5000:5000 \
 -v /your/manga/directory:/manga \
 -v /kavita/data/directory:/kavita/data \
 --restart unless-stopped \
--d kizaing/kavita:latest
+-d jvmilazz0/kavita:latest
 ```
 
 You can also run it via the docker-compose file:
@@ -67,7 +67,7 @@ You can also run it via the docker-compose file:
 version: '3.9'
 services:
     kavita:
-        image: kizaing/kavita:latest
+        image: jvmilazz0/kavita:latest
         volumes:
             - ./manga:/manga
             - ./data:/kavita/data
