@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { take } from 'rxjs/operators';
 import { ConfirmDialogComponent } from './confirm-dialog/confirm-dialog.component';
 import { ConfirmConfig } from './confirm-dialog/_models/confirm-config';
 
@@ -33,11 +34,17 @@ export class ConfirmService {
         config = this.defaultConfirm;
         config.content = content;
       }
+      if (content !== undefined && content !== '' && config!.content === '') {
+        config!.content = content;
+      }
 
       const modalRef = this.modalService.open(ConfirmDialogComponent);
       modalRef.componentInstance.config = config;
-      modalRef.closed.subscribe(result => {
+      modalRef.closed.pipe(take(1)).subscribe(result => {
         return resolve(result);
+      });
+      modalRef.dismissed.pipe(take(1)).subscribe(() => {
+        return resolve(false);
       });
     });
 
@@ -55,10 +62,13 @@ export class ConfirmService {
         config.content = content;
       }
 
-      const modalRef = this.modalService.open(ConfirmDialogComponent);
+      const modalRef = this.modalService.open(ConfirmDialogComponent, {size: "lg", fullscreen: "md"});
       modalRef.componentInstance.config = config;
-      modalRef.closed.subscribe(result => {
+      modalRef.closed.pipe(take(1)).subscribe(result => {
         return resolve(result);
+      });
+      modalRef.dismissed.pipe(take(1)).subscribe(() => {
+        return resolve(false);
       });
     })
   }

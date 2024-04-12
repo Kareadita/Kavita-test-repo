@@ -1,21 +1,17 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
 using API.Entities.Enums;
-using API.Entities.Interfaces;
+using API.Entities.Metadata;
 
-namespace API.Entities
+namespace API.Entities;
+
+public class Person
 {
-    public class Person : IHasConcurrencyToken
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public PersonRole Role { get; set; }
+    public int Id { get; set; }
+    public required string Name { get; set; }
+    public required string NormalizedName { get; set; }
+    public required PersonRole Role { get; set; }
 
-        [ConcurrencyCheck]
-        public uint RowVersion { get; set; }
-
-        public void OnSavingChanges()
-        {
-            RowVersion++;
-        }
-    }
+    // Relationships
+    public ICollection<SeriesMetadata> SeriesMetadatas { get; set; } = null!;
+    public ICollection<Chapter> ChapterMetadatas { get; set; } = null!;
 }

@@ -1,116 +1,91 @@
+@import '../node_modules/swiper/swiper';
+
+@import './theme/variables';
+
+// Import themes which define the css variables we use to customize the app
+@import './theme/themes/dark';
+
 // Import colors for overrides of bootstrap theme
-@import './theme/_colors.scss';
-@import './theme/_toastr.scss';
+@import './theme/toastr';
+
 
 // Bootstrap must be after _colors since we define the colors there
-@import '~bootstrap/scss/bootstrap';
-@import '~bootstrap/scss/mixins/_breakpoints.scss';
+@import '../node_modules/bootstrap/scss/bootstrap';
 
-@import '~swiper/swiper.scss';
-
-// Custom animation for ng-lazyload-image
-img.ng-lazyloaded {
-  animation: fadein .5s;
-}
-@keyframes fadein {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+@import '../node_modules/charts.css/dist/charts.min';
 
 
-@import './assets/themes/dark.scss';
+
+// Import all the customized theme overrides
+@import './theme/components/input';
+@import './theme/components/anchors';
+@import './theme/components/nav';
+@import './theme/components/buttons';
+@import './theme/components/toast';
+@import './theme/components/checkbox';
+@import './theme/components/list';
+@import './theme/components/navbar';
+@import './theme/components/popover';
+@import './theme/components/pagination';
+@import './theme/components/dropdown';
+@import './theme/components/accordion';
+@import './theme/components/breadcrumb';
+@import './theme/components/ratingstar';
+@import './theme/components/modal';
+@import './theme/components/card';
+@import './theme/components/slider';
+@import './theme/components/radios';
+@import './theme/components/selects';
+@import './theme/components/progress';
+@import './theme/components/sidenav';
+@import './theme/components/carousel';
+@import './theme/components/offcanvas';
+@import './theme/components/table';
+@import './theme/components/alerts';
+@import './theme/components/typeahead';
+
+
+@import './theme/utilities/utilities';
+@import './theme/utilities/animations';
+@import './theme/utilities/global';
+
 
 // Global Styles
-button:disabled, .form-control:disabled, .form-control[readonly], .disabled, :disabled {
-  cursor: not-allowed;
+@font-face {
+  font-family: "EBGarmond";
+  src: url("assets/fonts/EBGarmond/EBGaramond-VariableFont_wght.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Spartan";
+  src: url("assets/fonts/Spartan/Spartan-VariableFont_wght.woff2") format("woff2");
+  font-display: swap;
 }
 
 label, select, .clickable {
   cursor: pointer;
 }
 
-.btn-primary {
-  color: white;
+.form-check-input[disabled] ~ .form-check-label, .form-check-input:disabled ~ .form-check-label {
+  cursor: default;
 }
 
-@font-face {
-  font-family: "EBGarmond";
-  src: url(assets/fonts/EBGarmond/EBGaramond-VariableFont_wght.ttf) format("truetype");
+// Needed for fullscreen
+app-root {
+  background-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color-scrollbar);
 }
 
-@font-face {
-  font-family: "Spartan";
-  src: url("assets/fonts/Spartan/Spartan-VariableFont_wght.ttf");
+::-webkit-scrollbar {
+  width: 14px;
 }
 
-html, body { height: 100%; }
-body {
-  margin: 0; 
-  font-family: "EBGaramond", "Helvetica Neue", sans-serif;
-}
-
-// .disabled, :disabled {
-//   cursor: not-allowed !important;
-// }
-
-// Slider handle override
-::ng-deep {
-  .custom-slider .ngx-slider .ngx-slider-bar {
-    background: #ffe4d1;
-    height: 2px;
-  }
-  .custom-slider .ngx-slider .ngx-slider-selection {
-    background: orange;
-  }
-
-  .custom-slider .ngx-slider .ngx-slider-pointer {
-    width: 8px;
-    height: 16px;
-    top: auto; /* to remove the default positioning */
-    bottom: 0;
-    background-color: #333;
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-  }
-
-  .custom-slider .ngx-slider .ngx-slider-pointer:after {
-    display: none;
-  }
-
-  .custom-slider .ngx-slider .ngx-slider-bubble {
-    bottom: 14px;
-  }
-
-  .custom-slider .ngx-slider .ngx-slider-limit {
-    font-weight: bold;
-    color: orange;
-  }
-
-  .custom-slider .ngx-slider .ngx-slider-tick {
-    width: 1px;
-    height: 10px;
-    margin-left: 4px;
-    border-radius: 0;
-    background: #ffe4d1;
-    top: -1px;
-  }
-
-  .custom-slider .ngx-slider .ngx-slider-tick.ngx-slider-selected {
-    background: orange;
-  }
-}
-
-
-
-// Utiliities
-@include media-breakpoint-down(xs, (xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px)) {
-  .phone-hidden {
-    display: none;
-  }
-}
-
-@include media-breakpoint-up(sm, (xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px)) {
-  .not-phone-hidden {
-    display: none;
-  }
+::-webkit-scrollbar-thumb {
+  background-clip: padding-box;
+  background-color: var(--primary-color-scrollbar);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  min-height: 50px;
 }

@@ -1,12 +1,15 @@
-﻿using API.Entities.Enums;
+﻿using System;
+using API.Entities.Enums;
 
-namespace API.DTOs
+namespace API.DTOs;
+
+public class MangaFileDto
 {
-    public class MangaFileDto
-    {
-        public string FilePath { get; init; }
-        public int Pages { get; init; }
-        public MangaFormat Format { get; init; }
-        
-    }
+    public int Id { get; init; }
+    public string FilePath { get; init; } = default!;
+    public int Pages { get; init; }
+    public long Bytes { get; init; }
+    public MangaFormat Format { get; init; }
+    public DateTime Created { get; init; }
+
 }

@@ -1,150 +1,224 @@
 using System;
-using System.IO;
+using System.IO.Abstractions;
+using System.Linq;
 using System.Security.Cryptography;
-using System.Threading;
 using System.Threading.Tasks;
 using API.Data;
+using API.Data.ManualMigrations;
 using API.Entities;
-using API.Services.HostedServices;
+using API.Entities.Enums;
+using API.Logging;
+using API.Services;
+using API.SignalR;
 using Kavita.Common;
 using Kavita.Common.EnvironmentInfo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Sentry;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.AspNetCore.SignalR.Extensions;
 
-namespace API
+namespace API;
+#nullable enable
+
+public class Program
 {
-    public class Program
+    private static readonly int HttpPort = Configuration.Port;
+
+    protected Program()
     {
-        private static int _httpPort;
+    }
 
-        protected Program()
+    public static async Task Main(string[] args)
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .MinimumLevel
+            .Information()
+            .CreateBootstrapLogger();
+
+        var directoryService = new DirectoryService(null!, new FileSystem());
+
+        // Before anything, check if JWT has been generated properly or if user still has default
+        if (!Configuration.CheckIfJwtTokenSet() &&
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") != Environments.Development)
         {
+            Log.Logger.Information("Generating JWT TokenKey for encrypting user sessions...");
+            var rBytes = new byte[256];
+            RandomNumberGenerator.Create().GetBytes(rBytes);
+            Configuration.JwtToken = Convert.ToBase64String(rBytes).Replace("/", string.Empty);
         }
-        
-        public static string GetAppSettingFilename()
+
+        Configuration.KavitaPlusApiUrl = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == Environments.Development
+            ?  "http://localhost:5020" : "https://plus.kavitareader.com";
+
+        try
         {
-            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-            var isDevelopment = environment == Environments.Development;
-            return "appsettings" + (isDevelopment ? ".Development" : "") + ".json";
-        }
-        
-        public static async Task Main(string[] args)
-        {
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-
-            // Before anything, check if JWT has been generated properly or if user still has default
-            if (!Configuration.CheckIfJwtTokenSet(GetAppSettingFilename()) && Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") != Environments.Development)
-            {
-                Console.WriteLine("Generating JWT TokenKey for encrypting user sessions...");
-                var rBytes = new byte[128];
-                using (var crypto = new RNGCryptoServiceProvider()) crypto.GetBytes(rBytes);
-                var base64 = Convert.ToBase64String(rBytes).Replace("/", "");
-                Configuration.UpdateJwtToken(GetAppSettingFilename(), base64);
-            }
-            
-            // Get HttpPort from Config
-            _httpPort = Configuration.GetPort(GetAppSettingFilename());
-
-
             var host = CreateHostBuilder(args).Build();
 
             using var scope = host.Services.CreateScope();
             var services = scope.ServiceProvider;
+            var unitOfWork = services.GetRequiredService<IUnitOfWork>();
 
             try
             {
+                var logger = services.GetRequiredService<ILogger<Program>>();
                 var context = services.GetRequiredService<DataContext>();
-                var roleManager = services.GetRequiredService<RoleManager<AppRole>>();
-                // Apply all migrations on startup
+                var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+                var isDbCreated = await context.Database.CanConnectAsync();
+                if (isDbCreated && pendingMigrations.Any())
+                {
+                    logger.LogInformation("Performing backup as migrations are needed. Backup will be kavita.db in temp folder");
+                    var migrationDirectory = await GetMigrationDirectory(context, directoryService);
+                    directoryService.ExistOrCreate(migrationDirectory);
+
+                    if (!directoryService.FileSystem.File.Exists(
+                            directoryService.FileSystem.Path.Join(migrationDirectory, "kavita.db")))
+                    {
+                        directoryService.CopyFileToDirectory(directoryService.FileSystem.Path.Join(directoryService.ConfigDirectory, "kavita.db"), migrationDirectory);
+                        logger.LogInformation("Database backed up to {MigrationDirectory}", migrationDirectory);
+                    }
+                }
+
+                // Apply Before manual migrations that need to run before actual migrations
+                if (isDbCreated)
+                {
+                    Task.Run(async () =>
+                        {
+                            // Apply all migrations on startup
+                            logger.LogInformation("Running Migrations");
+
+                            // v0.7.14
+                            try
+                            {
+                                await MigrateWantToReadExport.Migrate(context, directoryService, logger);
+                            }
+                            catch (Exception ex)
+                            {
+                                /* Swallow */
+                            }
+
+                            await unitOfWork.CommitAsync();
+                            logger.LogInformation("Running Migrations - complete");
+                        }).GetAwaiter()
+                        .GetResult();
+                }
+
+
+
                 await context.Database.MigrateAsync();
-                await Seed.SeedRoles(roleManager);
-                await Seed.SeedSettings(context);
+
+
+                await Seed.SeedRoles(services.GetRequiredService<RoleManager<AppRole>>());
+                await Seed.SeedSettings(context, directoryService);
+                await Seed.SeedThemes(context);
+                await Seed.SeedDefaultStreams(unitOfWork);
+                await Seed.SeedDefaultSideNavStreams(unitOfWork);
+                await Seed.SeedUserApiKeys(context);
             }
             catch (Exception ex)
             {
-                var logger = services.GetRequiredService <ILogger<Program>>();
-                logger.LogError(ex, "An error occurred during migration");
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                var context = services.GetRequiredService<DataContext>();
+                var migrationDirectory = await GetMigrationDirectory(context, directoryService);
+
+                logger.LogCritical(ex, "A migration failed during startup. Restoring backup from {MigrationDirectory} and exiting", migrationDirectory);
+                directoryService.CopyFileToDirectory(directoryService.FileSystem.Path.Join(migrationDirectory, "kavita.db"), directoryService.ConfigDirectory);
+
+                return;
             }
 
+            // Update the logger with the log level
+            var settings = await unitOfWork.SettingsRepository.GetSettingsDtoAsync();
+            LogLevelOptions.SwitchLogLevel(settings.LoggingLevel);
+
             await host.RunAsync();
+        } catch (Exception ex)
+        {
+            Log.Fatal(ex, "Host terminated unexpectedly");
+        } finally
+        {
+            await Log.CloseAndFlushAsync();
+        }
+    }
+
+    private static async Task<string> GetMigrationDirectory(DataContext context, IDirectoryService directoryService)
+    {
+        string? currentVersion = null;
+        try
+        {
+            if (!await context.ServerSetting.AnyAsync()) return "vUnknown";
+            currentVersion =
+                (await context.ServerSetting.SingleOrDefaultAsync(s =>
+                    s.Key == ServerSettingKey.InstallVersion))?.Value;
+        }
+        catch (Exception)
+        {
+            // ignored
         }
 
-        private static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseKestrel((opts) =>
-                    {
-                        opts.ListenAnyIP(_httpPort, options =>
-                        {
-                            options.Protocols = HttpProtocols.Http1AndHttp2;
-                        });
-                    });
-                    
-                    var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-                    if (environment != Environments.Development)
-                    {
-                        webBuilder.UseSentry(options =>
-                        {
-                            options.Dsn = "https://40f4e7b49c094172a6f99d61efb2740f@o641015.ingest.sentry.io/5757423";
-                            options.MaxBreadcrumbs = 200;
-                            options.AttachStacktrace = true;
-                            options.Debug = false;
-                            options.SendDefaultPii = false;
-                            options.DiagnosticLevel = SentryLevel.Debug;
-                            options.ShutdownTimeout = TimeSpan.FromSeconds(5);
-                            options.Release = BuildInfo.Version.ToString();
-                            options.AddExceptionFilterForType<OutOfMemoryException>();
-                            options.AddExceptionFilterForType<NetVips.VipsException>();
-                            options.AddExceptionFilterForType<InvalidDataException>();
-                            options.AddExceptionFilterForType<KavitaException>();
+        if (string.IsNullOrEmpty(currentVersion))
+        {
+            currentVersion = "vUnknown";
+        }
 
-                            options.BeforeSend = sentryEvent =>
-                            {
-                                if (sentryEvent.Exception != null
-                                    && sentryEvent.Exception.Message.StartsWith("[GetCoverImage]")
-                                    && sentryEvent.Exception.Message.StartsWith("[BookService]")
-                                    && sentryEvent.Exception.Message.StartsWith("[ExtractArchive]")
-                                    && sentryEvent.Exception.Message.StartsWith("[GetSummaryInfo]")
-                                    && sentryEvent.Exception.Message.StartsWith("[GetSummaryInfo]")
-                                    && sentryEvent.Exception.Message.StartsWith("[GetNumberOfPagesFromArchive]")
-                                    && sentryEvent.Exception.Message.Contains("EPUB parsing error")
-                                    && sentryEvent.Exception.Message.Contains("Unsupported EPUB version")
-                                    && sentryEvent.Exception.Message.Contains("Incorrect EPUB")
-                                    && sentryEvent.Exception.Message.Contains("Access is Denied"))
-                                {
-                                    return null; // Don't send this event to Sentry
-                                }
-
-                                sentryEvent.ServerName = null; // Never send Server Name to Sentry
-                                return sentryEvent;
-                            };
-                            
-                            options.ConfigureScope(scope =>
-                            {
-                                scope.User = new User()
-                                {
-                                    Id = HashUtil.AnonymousToken()
-                                };
-                                scope.Contexts.App.Name = BuildInfo.AppName;
-                                scope.Contexts.App.Version = BuildInfo.Version.ToString();
-                                scope.Contexts.App.StartTime = DateTime.UtcNow;
-                                scope.Contexts.App.Hash = HashUtil.AnonymousToken();
-                                scope.Contexts.App.Build = BuildInfo.Release;
-                                scope.SetTag("culture", Thread.CurrentThread.CurrentCulture.Name);
-                                scope.SetTag("branch", BuildInfo.Branch);
-                            });
-
-                        });
-                    }
-                    
-                    webBuilder.UseStartup<Startup>();
-                });
+        var migrationDirectory = directoryService.FileSystem.Path.Join(directoryService.TempDirectory,
+            "migration", currentVersion);
+        return migrationDirectory;
     }
+
+    private static IHostBuilder CreateHostBuilder(string[] args) =>
+        Host.CreateDefaultBuilder(args)
+            .UseSerilog((_, services, configuration) =>
+            {
+                LogLevelOptions.CreateConfig(configuration)
+                    .WriteTo.SignalRSink<LogHub, ILogHub>(
+                        LogEventLevel.Information,
+                        services);
+            })
+            .ConfigureAppConfiguration((hostingContext, config) =>
+            {
+                config.Sources.Clear();
+
+                var env = hostingContext.HostingEnvironment;
+
+                config.AddJsonFile("config/appsettings.json", optional: true, reloadOnChange: false)
+                    .AddJsonFile($"config/appsettings.{env.EnvironmentName}.json",
+                        optional: true, reloadOnChange: false);
+            })
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.UseKestrel((opts) =>
+                {
+                    var ipAddresses = Configuration.IpAddresses;
+                    if (OsInfo.IsDocker || string.IsNullOrEmpty(ipAddresses) || ipAddresses.Equals(Configuration.DefaultIpAddresses))
+                    {
+                        opts.ListenAnyIP(HttpPort, options => { options.Protocols = HttpProtocols.Http1AndHttp2; });
+                    }
+                    else
+                    {
+                        foreach (var ipAddress in ipAddresses.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            try
+                            {
+                                var address = System.Net.IPAddress.Parse(ipAddress.Trim());
+                                opts.Listen(address, HttpPort, options => { options.Protocols = HttpProtocols.Http1AndHttp2; });
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Fatal(ex, "Could not parse ip address {IPAddress}", ipAddress);
+                            }
+                        }
+                    }
+                });
+
+                webBuilder.UseStartup<Startup>();
+            });
 }
