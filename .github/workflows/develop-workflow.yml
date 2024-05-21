@@ -15,6 +15,7 @@ jobs:
           echo "Ref: ${{ github.ref }}"
           echo "Not Contains Release: ${{ !contains(github.head_ref, 'release') }}"
           echo "Matches Develop: ${{ github.ref == 'refs/heads/develop' }}"
+
   build:
     name: Upload Kavita.Common for Version Bump
     runs-on: ubuntu-latest
@@ -63,7 +64,6 @@ jobs:
     steps:
       - name: Find Current Pull Request
         uses: jwalton/gh-find-current-pr@v1
-        id: findPr
         with:
           state: all
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -133,4 +133,58 @@ jobs:
       - name: Install Swashbuckle CLI
         run: dotnet tool install -g --version 6.5.0 Swashbuckle.AspNetCore.Cli
 
-      - run: ./monorepo-build.sh
+  build-and-package:
+    name: Build and Package
+    needs: [develop]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '3.1.x'
+
+      - name: Restore and Build
+        run: |
+          dotnet clean Kavita.sln -c Release
+          dotnet msbuild -restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
+          dotnet msbuild -restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-arm
+          dotnet msbuild -restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-arm64
+
+      - name: Package Linux x64
+        run: |
+          cd API
+          dotnet publish -c Release --no-restore --self-contained --runtime linux-x64 -o ../_output/linux-x64/Kavita
+          mv ../_output/linux-x64/Kavita/API ../_output/linux-x64/Kavita
+          cp -r wwwroot/* ../_output/linux-x64/Kavita/wwwroot/
+          cp INSTALL.txt ../_output/linux-x64/Kavita/README.txt
+          cp ../LICENSE ../_output/linux-x64/Kavita/LICENSE.txt
+          cp ./config/appsettings.Development.json ../_output/linux-x64/Kavita/config/appsettings.json
+          cd ../_output/linux-x64/
+          tar -czvf ../kavita-linux-x64.tar.gz Kavita
+  
+      - name: Package Linux ARM
+        run: |
+          cd API
+          dotnet publish -c Release --no-restore --self-contained --runtime linux-arm -o ../_output/linux-arm/Kavita
+          mv ../_output/linux-arm/Kavita/API ../_output/linux-arm/Kavita
+          cp -r wwwroot/* ../_output /linux-arm/Kavita/wwwroot/
+          cp INSTALL.txt ../_output/linux-arm/Kavita/README.txt
+          cp ../LICENSE ../_output/linux-arm/Kavita/LICENSE.txt
+          cp ./config/appsettings.Development.json ../_output/linux-arm/Kavita/config/appsettings.json
+          cd ../_output/linux-arm/
+          tar -czvf ../kavita-linux-arm.tar.gz Kavita
+  
+      - name: Package Linux ARM64
+        run: |
+          cd API
+          dotnet publish -c Release --no-restore --self-contained --runtime linux-arm64 -o ../_output/linux-arm64/Kavita
+          mv ../_output/linux-arm64/Kavita/API ../_output/linux-arm64/Kavita
+          cp -r wwwroot/* ../_output/linux-arm64/Kavita/wwwroot/
+          cp INSTALL.txt ../_output/linux-arm64/Kavita/README.txt
+          cp ../LICENSE ../_output/linux-arm64/Kavita/LICENSE.txt
+          cp ./config/appsettings.Development.json ../_output/linux-arm64/Kavita/config/appsettings.json
+          cd ../_output/linux-arm64/
+          tar -czvf ../kavita-linux-arm64.tar.gz Kavita
