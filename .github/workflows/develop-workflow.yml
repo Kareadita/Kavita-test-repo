@@ -133,9 +133,10 @@ jobs:
         
         - name: Install Swashbuckle CLI
           run: dotnet tool install -g --version 6.5.0 Swashbuckle.AspNetCore.Cli
-        
-        - name: Install dependencies
-          run: dotnet restore
+
+        # Lets test not doing restore here since the next build step has restore already. 
+#       - name: Install dependencies
+#          run: dotnet restore
 
         - name: Build for linux-x64
           run: |
