@@ -35,7 +35,7 @@ jobs:
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
-            dotnet-version: 8.0.x
+            dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Bump versions
         uses: majora2007/dotnet-bump-version@v0.0.10
@@ -88,11 +88,18 @@ jobs:
         uses: actions/setup-node@v4.0.2
         with:
           node-version: 20
+          node-version-file: UI/Web/package.json
           cache: 'npm'
           cache-dependency-path: UI/Web/package-lock.json
-      - run: cd UI/Web/ | npm ci
-      - run: cd UI/Web/ | npm run prod
-      - run: cd UI/Web/ | rsync -a dist/ ../../API/wwwroot/
+      - run: |
+          cd UI/Web
+          npm ci
+      - run: |
+         cd UI/Web/
+         npm run prod
+      - run: |
+         cd UI/Web 
+         rsync -a dist/ ../../API/wwwroot/
 
       - name: Get csproj Version
         uses: kzrnm/get-net-sdk-project-versions-action@v2
@@ -132,7 +139,7 @@ jobs:
               ${{ runner.os }}-nuget
         
         - name: Install Swashbuckle CLI
-          run: dotnet tool install -g --version 6.5.0 Swashbuckle.AspNetCore.Cli
+          run: dotnet tool install -g Swashbuckle.AspNetCore.Cli
 
         # Lets test not doing restore here since the next build step has restore already. 
 #       - name: Install dependencies
