@@ -110,13 +110,7 @@ jobs:
           run: dotnet restore
 
         - name: Build
-          run: |
-            dotnet msbuild Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
-        
-        - name: Package for linux-x64
-          run: |
-            cd API
-            dotnet publish 
-    
+          run: dotnet build Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
+
         - name: Didibreakit?
           run: echo "If we get to this point we can add the other actioins for the different builds"
