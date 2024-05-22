@@ -47,33 +47,6 @@ jobs:
       packages: write
       contents: read
     steps:
-      - name: Find Current Pull Request
-        uses: jwalton/gh-find-current-pr@v1
-        id: findPr
-        with:
-          state: all
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Parse PR body
-        id: parse-body
-        run: |
-          body="${{ steps.findPr.outputs.body }}"
-          if [[ ${#body} -gt 1870 ]] ; then
-            body=${body:0:1870}
-            body="${body}...and much more.
-
-            Read full changelog: https://github.com/Kareadita/Kavita/pull/${{ steps.findPr.outputs.pr }}"
-          fi
-
-          body=${body//\'/}
-          body=${body//'%'/'%25'}
-          body=${body//$'\n'/'%0A'}
-          body=${body//$'\r'/'%0D'}
-          body=${body//$'`'/'%60'}
-          body=${body//$'>'/'%3E'}
-          echo $body
-          echo "BODY=$body" >> $GITHUB_OUTPUT
-
       - name: Check Out Repo
         uses: actions/checkout@v4
         with:
@@ -112,11 +85,8 @@ jobs:
         run: echo "${{steps.get-version.outputs.assembly-version}}"
         
   compile:
-    name: build-and-test-${{matrix.os}}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
+    name: build-and-test
+    runs-on: ubuntu-latest
     steps:
         - uses: actions/checkout@v2
     
@@ -136,25 +106,17 @@ jobs:
         - name: Install Swashbuckle CLI
           run: dotnet tool install -g Swashbuckle.AspNetCore.Cli
 
-        # Lets test not doing restore here since the next build step has restore already. 
-#       - name: Install dependencies
-#          run: dotnet restore
+        - name: Install dependencies
+          run: dotnet restore
 
-        - name: Build for linux-x64
+        - name: Build
           run: |
-            dotnet msbuild -restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
+            dotnet msbuild --no-restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
         
         - name: Package for linux-x64
           run: |
             cd API
-            dotnet publish -c Release --no-restore --self-contained --runtime linux-x64 -o ../_output/linux-x64/Kavita
-            mv ../_output/linux-x64/Kavita/API ../_output/linux-x64/Kavita/Kavita
-            cp -r "wwwroot/"* ../_output/linux-x64/Kavita/wwwroot/
-            cp ../INSTALL.txt ../_output/linux-x64/Kavita/README.txt
-            cp ../LICENSE ../_output/linux-x64/Kavita/LICENSE.txt
-            cp ./config/appsettings.Development.json ../_output/linux-x64/Kavita/config/appsettings.json
-            cd ../_output/linux-x64/
-            tar -czvf ../kavita-linux-x64.tar.gz Kavita
+            dotnet publish 
     
         - name: Didibreakit?
           run: echo "If we get to this point we can add the other actioins for the different builds"
