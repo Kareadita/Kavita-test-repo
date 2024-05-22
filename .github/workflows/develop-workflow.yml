@@ -111,7 +111,7 @@ jobs:
 
         - name: Build
           run: |
-            dotnet msbuild --no-restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
+            dotnet msbuild Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
         
         - name: Package for linux-x64
           run: |
