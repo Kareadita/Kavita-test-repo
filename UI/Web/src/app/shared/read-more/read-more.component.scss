@@ -1,6 +1,4 @@
-.read-more-link {
-    font-weight: bold;
-    text-decoration: none;
-    color: black;
-    cursor: pointer;
+.blur-text {
+  color: transparent;
+  text-shadow: 0 0 5px var(--body-text-color);
 }

@@ -1,54 +1,59 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using API.Interfaces;
-using API.Interfaces.Services;
+using API.Data;
+using API.Services.Tasks.Scanner;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace API.Services.HostedServices
+namespace API.Services.HostedServices;
+#nullable enable
+
+public class StartupTasksHostedService : IHostedService
 {
-    public class StartupTasksHostedService : IHostedService
+    private readonly IServiceProvider _provider;
+
+    public StartupTasksHostedService(IServiceProvider serviceProvider)
     {
-        private readonly IServiceProvider _provider;
-
-        public StartupTasksHostedService(IServiceProvider serviceProvider)
-        {
-            _provider = serviceProvider;
-        }
-
-        public async Task StartAsync(CancellationToken cancellationToken)
-        {
-            using var scope = _provider.CreateScope();
-
-            var taskScheduler = scope.ServiceProvider.GetRequiredService<ITaskScheduler>();
-            taskScheduler.ScheduleTasks();
-
-            try
-            {
-                await ManageStartupStatsTasks(scope, taskScheduler);
-            }
-            catch (Exception)
-            {
-                //If stats startup fail the user can keep using the app
-            }
-        }
-
-        private async Task ManageStartupStatsTasks(IServiceScope serviceScope, ITaskScheduler taskScheduler)
-        {
-            var unitOfWork = serviceScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-            var settingsDto = await unitOfWork.SettingsRepository.GetSettingsDtoAsync();
-
-            if (!settingsDto.AllowStatCollection) return;
-
-            taskScheduler.ScheduleStatsTasks();
-
-            var statsService = serviceScope.ServiceProvider.GetRequiredService<IStatsService>();
-
-            await statsService.CollectAndSendStatsData();
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        _provider = serviceProvider;
     }
+
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _provider.CreateScope();
+
+        var taskScheduler = scope.ServiceProvider.GetRequiredService<ITaskScheduler>();
+        await taskScheduler.ScheduleTasks();
+        taskScheduler.ScheduleUpdaterTasks();
+
+
+        try
+        {
+            // These methods will automatically check if stat collection is disabled to prevent sending any data regardless
+            // of when setting was changed
+            await taskScheduler.ScheduleStatsTasks();
+            await taskScheduler.RunStatCollection();
+        }
+        catch (Exception)
+        {
+            //If stats startup fail the user can keep using the app
+        }
+
+        try
+        {
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            if ((await unitOfWork.SettingsRepository.GetSettingsDtoAsync()).EnableFolderWatching)
+            {
+                var libraryWatcher = scope.ServiceProvider.GetRequiredService<ILibraryWatcher>();
+                await libraryWatcher.StartWatching();
+            }
+        }
+        catch (Exception)
+        {
+            // Fail silently
+        }
+
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
