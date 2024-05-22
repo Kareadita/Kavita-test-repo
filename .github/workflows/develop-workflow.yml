@@ -142,13 +142,13 @@ jobs:
           run: |
             dotnet clean Kavita.sln -c Release
             dotnet msbuild -restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
-    
+        
         - name: Package for linux-x64
           run: |
             cd API
             dotnet publish -c Release --no-restore --self-contained --runtime linux-x64 -o ../_output/linux-x64/Kavita
             mv ../_output/linux-x64/Kavita/API ../_output/linux-x64/Kavita/Kavita
-            cp -r wwwroot/* ../_output/linux-x64/Kavita/wwwroot/
+            cp -r "wwwroot/"* ../_output/linux-x64/Kavita/wwwroot/
             cp ../INSTALL.txt ../_output/linux-x64/Kavita/README.txt
             cp ../LICENSE ../_output/linux-x64/Kavita/LICENSE.txt
             cp ./config/appsettings.Development.json ../_output/linux-x64/Kavita/config/appsettings.json
