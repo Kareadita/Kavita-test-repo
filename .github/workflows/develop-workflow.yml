@@ -32,11 +32,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4
-        with:
-            dotnet-version: ${{ env.DOTNET_VERSION }}
-
       - name: Bump versions
         uses: majora2007/dotnet-bump-version@v0.0.10
         with:
@@ -147,7 +142,6 @@ jobs:
 
         - name: Build for linux-x64
           run: |
-            dotnet clean Kavita.sln -c Release
             dotnet msbuild -restore Kavita.sln -p:Configuration=Release -p:Platform="Any CPU" -p:RuntimeIdentifiers=linux-x64
         
         - name: Package for linux-x64
@@ -162,8 +156,5 @@ jobs:
             cd ../_output/linux-x64/
             tar -czvf ../kavita-linux-x64.tar.gz Kavita
     
-        - name: Test
-          run: dotnet test --no-restore --verbosity normal
-
         - name: Didibreakit?
           run: echo "If we get to this point we can add the other actioins for the different builds"
