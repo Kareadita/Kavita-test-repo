@@ -90,9 +90,9 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: UI/Web/package-lock.json
-      - run: npm ci
-      - run: npm run prod
-      - run: rsync -a dist/ ../../API/wwwroot/
+      - run: cd UI/Web/ | npm ci
+      - run: cd UI/Web/ | npm run prod
+      - run: cd UI/Web/ | rsync -a dist/ ../../API/wwwroot/
 
       - name: Get csproj Version
         uses: kzrnm/get-net-sdk-project-versions-action@v2
